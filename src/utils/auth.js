@@ -62,22 +62,50 @@ export const protect = async (req, res, next) => {
     res.status(401).send({ message: 'no auth' })
   }
 
-  let token = req.headers.authorization.split('Bearer ')[1]
-
-  if (!token) {
-    return res.status(401).send({ message: 'nope' })
+  if (!bearer || !bearer.startsWith('Bearer ')) {
+    return res.status(401).end()
   }
 
+  const token = bearer.split('Bearer ')[1].trim()
+  let payload
   try {
-    const payload = await verifyToken(token)
-    const user = User.findById({ id: payload.id })
-      .select('-password')
-      .exec()
-
-    req.user = user
-    next()
-  } catch (err) {
-    console.error(err)
-    return res.status(401).send({ message: 'nope' })
+    payload = await verifyToken(token)
+  } catch (e) {
+    return res.status(401).end()
   }
+
+  const user = await User.findById(payload.id)
+    .select('-password')
+    .lean()
+    .exec()
+
+  if (!user) {
+    return res.status(401).end()
+  }
+
+  req.user = user
+  next()
+
+  // if (!req.headers.authorization) {
+  //   res.status(401).send({ message: 'no auth' })
+  // }
+
+  // let token = req.headers.authorization.split('Bearer ')[1]
+
+  // if (!token) {
+  //   return res.status(401).send({ message: 'nope' })
+  // }
+
+  // try {
+  //   const payload = await verifyToken(token)
+  //   const user = User.findById({ id: payload.id })
+  //     .select('-password')
+  //     .exec()
+
+  //   req.user = user
+  //   next()
+  // } catch (err) {
+  //   console.error(err)
+  //   return res.status(401).send({ message: 'nope' })
+  // }
 }
